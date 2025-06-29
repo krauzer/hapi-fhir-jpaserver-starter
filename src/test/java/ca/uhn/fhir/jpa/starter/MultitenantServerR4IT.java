@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(SpringExtension.class)
@@ -30,6 +31,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 		"hapi.fhir.cr_enabled=false",
 		"hapi.fhir.partitioning.partitioning_include_in_search_hashes=false",
 		"hapi.fhir.partitioning.request_tenant_partitioning_mode=true",
+		"hapi.fhir.implementationguides.uscore.name=hl7.fhir.us.core",
+		"hapi.fhir.implementationguides.uscore.version=8.0.0",
+		"hapi.fhir.implementationguides.uscore.installMode=STORE_AND_INSTALL"
 	})
 class MultitenantServerR4IT {
 
@@ -40,6 +44,24 @@ class MultitenantServerR4IT {
 	private FhirContext ourCtx;
 	@LocalServerPort
 	private int port;
+
+	@Test
+	void testLoadingIGOnMultitenantServer() {
+		assertDoesNotThrow(() -> {
+			ourClientTenantInterceptor.setTenantId("DEFAULT");
+			ourClient
+				.operation()
+				.onServer()
+				.named(ProviderConstants.PARTITION_MANAGEMENT_CREATE_PARTITION)
+				.withParameter(Parameters.class, ProviderConstants.PARTITION_MANAGEMENT_PARTITION_ID, new IntegerType(3))
+				.andParameter(ProviderConstants.PARTITION_MANAGEMENT_PARTITION_NAME, new CodeType("TENANT-IG"))
+				.execute();
+
+			System.clearProperty("hapi.fhir.implementationguides.uscore.name");
+			System.clearProperty("hapi.fhir.implementationguides.uscore.version");
+			System.clearProperty("hapi.fhir.implementationguides.uscore.installMode");
+		});
+	}
 
 	@Test
 	void testCreateAndReadInTenantA() {
